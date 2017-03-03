@@ -1,7 +1,7 @@
 # !/usr/bin/bash
 
 # usage
-# test.sh -a -desktop="i3"
+# test.sh -a --desktop="i3"
 
 
 version='dev test'
@@ -42,11 +42,28 @@ function set_lang() {
 
 # read console args , set in PARAMS global var
 get_params() {
-    while getopts ad: option; do
-        case $option in
-            a) PARAMS[advanced]=1 ;;
-            d) PARAMS[desktop]="${OPTARG}" ;;
+    local key
+    while [ -n "$1" ]; do
+        param="$1"
+        case "$param" in
+            --advanced|-a)
+                PARAMS[advanced]=1
+                ;;
+            --desktop=*)
+                key="desktop"
+                PARAMS[$key]="${param##--$key=}"
+                [[ "${PARAMS[$key]:0:1}" == '"' ]] && PARAMS[$key]="${PARAMS[$key]/\"/}"
+                PARAMS[$key]="${PARAMS[$key]^^}"
+                ;;
+            --help|-h)
+                echo "usage [-a|--advanced] [ --desktop=i3 ] "
+                exit 0
+                ;;                
+            -*)
+                echo "$param: not used";
+                ;;
         esac
+        shift
     done
 }
 
@@ -94,7 +111,7 @@ DIALOG() {
 main_menu_online()
 {
     local id options menus choice loopmenu
-    cmd=(DIALOG "Select a option" --menu "test: -d i3 -a " 0 0 16)
+    cmd=(DIALOG "Select a option" --menu "test;sh [--desktop=i3] [-a]" 0 0 )
     options=(
        1 "Option 1" mount_partitions  # number 3 is the function
        5 "Install desktop" install_desktop
@@ -106,9 +123,9 @@ main_menu_online()
     # somes test
     # can delete item 2 from parameters/hardware/...
     # can replace item 3 ...
-    if [[ "${PARAMS[desktop]}" == 'i3' ]]; then
-        options[4]='install i3'
-        options[5]='install_desktop_i3' # change call
+    if [[ "${PARAMS[desktop]}" != '' ]]; then
+        options[4]="install ${PARAMS[desktop]}"
+        options[5]="install_desktop_${PARAMS[desktop]}" # change call
     fi
     if [[ "${PARAMS[advanced]}" == '0' ]]; then
         unset options[11]   # delete a line
@@ -122,6 +139,9 @@ main_menu_online()
         # run a working function
         format_and_install
     fi
+
+    (( id="${#options[@]}" /3 ))
+    cmd+=( $id ) # number of lines
 
     # a function to remove  the third column
     mapfile -t menus <<< "$(format_menutool "${options[@]}" )"
