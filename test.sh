@@ -111,7 +111,7 @@ DIALOG() {
 main_menu_online()
 {
     local id options menus choice loopmenu
-    cmd=(DIALOG "Select a option" --menu "test;sh [--desktop=i3] [-a]" 0 0 )
+    cmd=(DIALOG "Select a option" --menu "test.sh [--desktop=i3] [-a]" 0 0 )
     options=(
        1 "Option 1" mount_partitions  # number 3 is the function
        5 "Install desktop" install_desktop
@@ -120,7 +120,7 @@ main_menu_online()
        2 "nothing" get_params
     )
 
-    # somes test
+    # somes tests
     # can delete item 2 from parameters/hardware/...
     # can replace item 3 ...
     if [[ "${PARAMS[desktop]}" != '' ]]; then
