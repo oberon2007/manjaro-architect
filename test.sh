@@ -105,39 +105,44 @@ DIALOG() {
     dialog --keep-tite --backtitle "$VERSION - $SYSTEM ($ARCHI)" --column-separator "|" --title "$@"
 }
 
+donefn() {
+    exit 0
+}
+
 
 ####################################################
 
-main_menu_online()
+# modify item desktop , text and function
+# delete item if not advanced
+sub_menu()
 {
-    local id options menus choice loopmenu
-    cmd=(DIALOG "Select a option" --menu "test.sh [--desktop=i3] [-a]" 0 0 )
+    local cmd id options menus choice loopmenu
+    cmd=(DIALOG "content set by params" --menu "test.sh [--desktop=i3] [-a]" 0 0 )
     options=(
        1 "Option 1" mount_partitions  # number 3 is the function
-       5 "Install desktop" install_desktop
-       8 "Option 3 | >" sub_menu_extra
-       9 "Option for advanced user" function_extra
-       2 "nothing" get_params
+       2 "Install desktop" install_desktop
+       3 "Option 3 | >" sub_menu_extra
+       4 "Option for advanced user" function_extra
+       5 "nothing" get_params
     )
 
     # somes tests
-    # can delete item 2 from parameters/hardware/...
     # can replace item 3 ...
     if [[ "${PARAMS[desktop]}" != '' ]]; then
         options[4]="install ${PARAMS[desktop]}"
         options[5]="install_desktop_${PARAMS[desktop]}" # change call
     fi
+    # can delete item from parameters/hardware/...
     if [[ "${PARAMS[advanced]}" == '0' ]]; then
-        unset options[11]   # delete a line
+        unset options[11]   # delete line 4
         unset options[10]
         unset options[9]
     fi  
     # end tests
 
     if ((${#options[@]}==0)); then
-        #menu empty
-        # run a working function
-        format_and_install
+        # if menu empty run a working function
+        format_and_install ; return $?
     fi
 
     (( id="${#options[@]}" /3 ))
@@ -156,10 +161,64 @@ main_menu_online()
 
         case "$choice" in
             0) return 0 ;;                # btn cancel
+            *)  
+                id=$(( (choice*3)-1 ))
+                fn="${options[$id]}"      # find attach working function to array with  3 column
+                echo $fn                  # debug
+                $fn &>/dev/null || return $?        # run working(or submenu) function
+        esac
+
+    done
+}
+
+# just use array from advanced or not
+main_menu()
+{
+    local cmd id options menus choice loopmenu
+    cmd=(DIALOG "view a sub menu" --menu "test.sh [--desktop=i3] [-a]" 0 0 )
+    options=(
+        1 "$_PrepMenuTitle |>" sub_menu  # number 3 is the function
+        2 "$_InstBsMenuTitle |>" sub_menu
+        3 "$_InstGrMenuTitle |>" sub_menu
+        4 "$_ConfBseMenuTitle |>" sub_menu
+        5 "$_SeeConfOptTitle |>" sub_menu
+        6 "$_Done" donefn
+    )
+    if [[ "${PARAMS[advanced]}" == '1' ]]; then
+      options=(
+        1 "$_PrepMenuTitle |>" sub_menu  # number 3 is the function
+        5 "$_InstBsMenuTitle |>" sub_menu
+        8 "$_InstGrMenuTitle |>" sub_menu
+        9 "$_ConfBseMenuTitle |>" sub_menu
+        9 "$_InstNMMenuTitle |>" sub_menu
+        9 "$_InstMultMenuTitle |>" sub_menu       
+        9 "$_SecMenuTitle |>" sub_menu
+        2 "$_SeeConfOptTitle |>" sub_menu
+        2 "$_Done" exit        
+      )
+    fi      
+
+    (( id="${#options[@]}" /3 ))
+    cmd+=( $id ) # number of lines
+
+    # a function to remove  the third column
+    mapfile -t menus <<< "$(format_menutool "${options[@]}" )"
+    declare -p menus &>/dev/null
+
+    loopmenu=1
+    while ((1)); do
+
+        # run dialog options
+        choice=$("${cmd[@]}" "${menus[@]}" 2>&1 >/dev/tty)
+        choice="${choice:-0}"
+
+        case "$choice" in
+            0) return 0 ;;                # btn cancel
             *)  echo "$choice"            # debug
                 id=$(( (choice*3)-1 ))
                 fn="${options[$id]}"      # find attach working function to array with  3 column
-                ($fn) || return $?        # run working(or submenu) function
+                echo $fn                  # debug
+                $fn # run working(or submenu) function
         esac
 
     done
@@ -173,4 +232,4 @@ if [[ "${PARAMS[advanced]}" == '0' ]]; then
     menu_choice
 fi
 
-main_menu_online
+main_menu
